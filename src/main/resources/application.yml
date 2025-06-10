@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: spring-ai-deepseek-dome
+  ai:
+    deepseek:
+      api-key: sk-17a2d032e57b42619b8d244938468144
+server:
+  port: 8080
+logging:
+  level:
+    # 修正后的日志配置（删除重复包名）
+    org.springframework.ai.chat.client.advisor: DEBUG
+    # 可选：添加全局AI日志监控
+    org.springframework.ai: INFO
