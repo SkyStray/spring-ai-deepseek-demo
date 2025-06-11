@@ -3,12 +3,31 @@ spring:
     name: spring-ai-deepseek-dome
   ai:
     deepseek:
-      api-key: sk-17a2d032e57b42619b8d244938468144
+      api-key: ${DEEPSEEK_API_KEY:}  # 从环境变量或JVM参数获取
+    openai:
+      api-key: ${OPENAI_API_KEY:}    # 冒号后为空表示强制必须配置
+      chat:
+          options:
+            model: "gpt-3.5-turbo"
+  datasource:
+    url: jdbc:mysql://cd-cdb-dg1tsqr2.sql.tencentcdb.com:27806/db_study?charset=utf8mb4&parseTime=True&loc=Local
+    username: dev_rd
+    password: dev_rd
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # 明确指定方言
+    hibernate:
+      ddl-auto: update  # 自动更新表结构
+    show-sql: true      # 显示 SQL 日志
 server:
   port: 8080
 logging:
   level:
     # 修正后的日志配置（删除重复包名）
     org.springframework.ai.chat.client.advisor: DEBUG
+    # 显示完整工具调用过程
+    org.springframework.ai.chat.client: DEBUG
+    org.springframework.ai.model: TRACE
     # 可选：添加全局AI日志监控
     org.springframework.ai: INFO
+
