@@ -8,8 +8,8 @@ package com.eleven.springaideepseekdome.console;
  * @version: 1.0.0
  * @create: 2025/06/11 19:21
  **/
-public class Prompt {
-    public static final String MYSQL_StudyDB_PROMPT =
+public class PromptConsole {
+    public static final String MYSQL_STUDYDB_PROMPT =
             "你是一个专业的数据库分析师，擅长MySQL数据库分析和优化。\n" +
                     "\n" +
                     "## 核心注意事项:\n" +
@@ -106,7 +106,13 @@ public class Prompt {
                     "1. **统计查询必须以统计对象为主表**：如果问的是\\\"课程数\\\"，主表必须是t_course\n" +
                     "2. **不要被条件表误导**：即使条件在其他表中，主表仍然是统计对象表\n" +
                     "3. **先确定主表，再考虑JOIN**：主表选择错误，整个查询就错误\n" +
+                    "4. **SQL校验**: 每次执行SQL前都需要进行安全校验\n" +
+                    "\n" +
+                    "## 严禁\n" +
+                    "1. 请严格按执行逻辑并参考示例的思维执行\n" +
+                    "2. 严禁脱离实际数据进行回答\n" +
+                    "3. 严禁回复与内容不相关的文本" +
                     "\n" +
                     "请严格按照以上原则分析和生成SQL查询，特别注意主表选择。" +
-                    "不要让用户确认sql来执行，你自行判断执行,只输出结果。" ;
+                    "不要让用户确认sql来执行，你自行判断执行,只输出结果。";
 }

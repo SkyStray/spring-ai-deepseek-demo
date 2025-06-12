@@ -1,5 +1,6 @@
 package com.eleven.springaideepseekdome.controller;
 
+import com.eleven.springaideepseekdome.console.PromptConsole;
 import com.eleven.springaideepseekdome.domain.dto.ChatReply;
 import com.eleven.springaideepseekdome.domain.dto.ChatRequest;
 import com.eleven.springaideepseekdome.tools.DateTimeTools;
@@ -13,7 +14,8 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
-import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,15 +26,11 @@ import javax.validation.Valid;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.eleven.springaideepseekdome.console.Prompt.MYSQL_StudyDB_PROMPT;
-
 @Slf4j
 @RestController
 public class ChatController {
     @Autowired
     private DeepSeekChatModel deepSeekChatModel;
-    @Autowired
-    private OpenAiChatModel openAiChatModel;
     @Autowired
     private ChatClient chatClient;
     @Autowired
@@ -40,21 +38,29 @@ public class ChatController {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private SyncMcpToolCallbackProvider toolCallbackProvider;
+
 
     /**
      * 处理AI生成的聊天会话POST请求（同步响应）
+     *
      * @param request
      * @return
      */
-    @PostMapping("/ai/chatmemory/tool/sync")
-    public ChatReply chatmemoryToolSync(@RequestBody @Valid ChatRequest request) {
+    @PostMapping("/ai/chatmemory/mcp/sync")
+    public ChatReply chatmemoryMcpSync(@RequestBody @Valid ChatRequest request) {
         // 判断sessionID是否为空，为空则生成一个sessionID
         if (request.getSession() == null) {
             request.setSession("session_" + System.currentTimeMillis());
         }
-        ChatResponse chatResponse = ChatClient.create(deepSeekChatModel)
-                .prompt()
-                .tools(new DateTimeTools(),new MysqlTools(jdbcTemplate))
+        ToolCallback[] toolCallbacks = toolCallbackProvider.getToolCallbacks();
+        // 日志打印toolCallbacks
+        log.info("toolCallbacks: {}", toolCallbacks);
+
+        ChatResponse chatResponse = chatClient
+                .prompt(PromptConsole.MYSQL_STUDYDB_PROMPT)
+                .toolCallbacks(toolCallbacks)
                 .advisors(
                         new SimpleLoggerAdvisor(), // 日志
                         MessageChatMemoryAdvisor.builder(chatMemory).
@@ -68,48 +74,8 @@ public class ChatController {
 
 
     /**
-     * 处理AI生成的聊天会话POST请求（流式响应）
-     * @param request
-     * @return
-     */
-    @PostMapping(value = "/ai/chatmemory/tool/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<Map<String, Object>> chatmemoryToolStream(@RequestBody @Valid ChatRequest request) {
-        final String sessionId = request.getSession() != null ?
-                request.getSession() : "session_" + System.currentTimeMillis();
-
-        return ChatClient.create(deepSeekChatModel).prompt()
-                .tools(new DateTimeTools(),new MysqlTools(jdbcTemplate))
-                .advisors(
-                        new SimpleLoggerAdvisor(),
-                        MessageChatMemoryAdvisor.builder(chatMemory)
-                                .conversationId(sessionId).build()
-                )
-                .user(request.getMessage())
-                .stream()
-                .chatResponse()
-                .map(chatResponse -> {
-                    // 构建响应Map
-                    Map<String, Object> responseMap = Map.of(
-                            "session", sessionId,
-                            "round", chatMemory.get(sessionId) != null ?
-                                    chatMemory.get(sessionId).size() : 0,
-                            "content", chatResponse.getResult().getOutput().getText(),
-                            "tools", chatResponse.getResult().getOutput().getToolCalls()
-                                    .stream().map(tc -> tc.toString()).toList()
-                    );
-
-                    // 打印日志
-                    log.info("流式响应数据: {}",
-                            responseMap.entrySet().stream()
-                                    .map(entry -> entry.getKey() + "=" + entry.getValue())
-                                    .collect(Collectors.joining(", ", "{", "}"))
-                    );
-
-                    return responseMap; // 直接返回Map
-                });
-    }
-    /**
      * 处理AI生成的聊天会话POST请求（同步响应）
+     *
      * @param request
      * @return
      */
@@ -119,9 +85,9 @@ public class ChatController {
         if (request.getSession() == null) {
             request.setSession("session_" + System.currentTimeMillis());
         }
-        ChatResponse chatResponse = ChatClient.create(deepSeekChatModel)
-                .prompt(MYSQL_StudyDB_PROMPT)
-                .tools(new DateTimeTools(),new MysqlTools(jdbcTemplate))
+        ChatResponse chatResponse = chatClient
+                .prompt(PromptConsole.MYSQL_STUDYDB_PROMPT)
+                .tools(new DateTimeTools(), new MysqlTools(jdbcTemplate))
                 .advisors(
                         new SimpleLoggerAdvisor(), // 日志
                         MessageChatMemoryAdvisor.builder(chatMemory).
@@ -136,6 +102,7 @@ public class ChatController {
 
     /**
      * 处理AI生成的聊天会话POST请求（流式响应）
+     *
      * @param request
      * @return
      */
@@ -144,9 +111,9 @@ public class ChatController {
         final String sessionId = request.getSession() != null ?
                 request.getSession() : "session_" + System.currentTimeMillis();
 
-        return ChatClient.create(deepSeekChatModel)
-                .prompt(MYSQL_StudyDB_PROMPT)
-                .tools(new DateTimeTools(),new MysqlTools(jdbcTemplate))
+        return chatClient
+                .prompt(PromptConsole.MYSQL_STUDYDB_PROMPT)
+                .tools(new DateTimeTools(), new MysqlTools(jdbcTemplate))
                 .advisors(
                         new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(chatMemory)
@@ -180,6 +147,78 @@ public class ChatController {
 
     /**
      * 处理AI生成的聊天会话POST请求（同步响应）
+     *
+     * @param request
+     * @return
+     */
+    @PostMapping("/ai/chatmemory/tool/sync")
+    public ChatReply chatmemoryToolSync(@RequestBody @Valid ChatRequest request) {
+        // 判断sessionID是否为空，为空则生成一个sessionID
+        if (request.getSession() == null) {
+            request.setSession("session_" + System.currentTimeMillis());
+        }
+        ChatResponse chatResponse = chatClient
+                .prompt()
+                .tools(new DateTimeTools(), new MysqlTools(jdbcTemplate))
+                .advisors(
+                        new SimpleLoggerAdvisor(), // 日志
+                        MessageChatMemoryAdvisor.builder(chatMemory).
+                                conversationId(request.getSession()).build() // 聊天记忆功能
+                )
+                .user(request.getMessage())
+                .call().chatResponse();
+
+        return new ChatReply(chatResponse.getResult().getOutput().getText(), request.getSession());
+    }
+
+
+    /**
+     * 处理AI生成的聊天会话POST请求（流式响应）
+     *
+     * @param request
+     * @return
+     */
+    @PostMapping(value = "/ai/chatmemory/tool/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<Map<String, Object>> chatmemoryToolStream(@RequestBody @Valid ChatRequest request) {
+        final String sessionId = request.getSession() != null ?
+                request.getSession() : "session_" + System.currentTimeMillis();
+
+        return chatClient.prompt()
+                .tools(new DateTimeTools(), new MysqlTools(jdbcTemplate))
+                .advisors(
+                        new SimpleLoggerAdvisor(),
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                .conversationId(sessionId).build()
+                )
+                .user(request.getMessage())
+                .stream()
+                .chatResponse()
+                .map(chatResponse -> {
+                    // 构建响应Map
+                    Map<String, Object> responseMap = Map.of(
+                            "session", sessionId,
+                            "round", chatMemory.get(sessionId) != null ?
+                                    chatMemory.get(sessionId).size() : 0,
+                            "content", chatResponse.getResult().getOutput().getText(),
+                            "tools", chatResponse.getResult().getOutput().getToolCalls()
+                                    .stream().map(tc -> tc.toString()).toList()
+                    );
+
+                    // 打印日志
+                    log.info("流式响应数据: {}",
+                            responseMap.entrySet().stream()
+                                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                                    .collect(Collectors.joining(", ", "{", "}"))
+                    );
+
+                    return responseMap; // 直接返回Map
+                });
+    }
+
+
+    /**
+     * 处理AI生成的聊天会话POST请求（同步响应）
+     *
      * @param request
      * @return
      */
@@ -189,7 +228,7 @@ public class ChatController {
         if (request.getSession() == null) {
             request.setSession("session_" + System.currentTimeMillis());
         }
-        String content = ChatClient.create(deepSeekChatModel).prompt()
+        String content = chatClient.prompt()
                 .advisors(
                         new SimpleLoggerAdvisor(), // 日志
                         MessageChatMemoryAdvisor.builder(chatMemory).
@@ -204,6 +243,7 @@ public class ChatController {
 
     /**
      * 处理AI生成的聊天会话POST请求（流式响应）
+     *
      * @param request
      * @return
      */
@@ -212,7 +252,7 @@ public class ChatController {
         final String sessionId = request.getSession() != null ?
                 request.getSession() : "session_" + System.currentTimeMillis();
 
-        return ChatClient.create(deepSeekChatModel).prompt()
+        return chatClient.prompt()
                 .advisors(
                         new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(chatMemory)
@@ -229,6 +269,7 @@ public class ChatController {
 
     /**
      * 处理AI生成的GET请求 同步
+     *
      * @param message
      * @return
      */
@@ -239,6 +280,7 @@ public class ChatController {
 
     /**
      * 处理AI生成的GET请求 流式
+     *
      * @param message
      * @return
      */

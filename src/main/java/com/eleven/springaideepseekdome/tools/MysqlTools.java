@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @program: IntelliJ IDEA / spring-ai-deepseek-demo
@@ -205,11 +207,14 @@ public class MysqlTools {
                 throw new IllegalArgumentException("非法操作类型: " + firstKeyword);
             }
 
-            // 7. 检查黑名单关键字（防止绕过）
-            if (forbiddenKeywords.stream().anyMatch(stmt::contains)) {
+            // 7. 使用正则防止误判
+            Pattern pattern = Pattern.compile("\\b(" + String.join("|", forbiddenKeywords) + ")\\b", Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(stmt);
+            if (matcher.find()) {
                 throw new IllegalArgumentException("检测到危险操作: " + stmt);
             }
         }
     }
+
 
 }

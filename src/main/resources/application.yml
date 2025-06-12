@@ -4,11 +4,17 @@ spring:
   ai:
     deepseek:
       api-key: ${DEEPSEEK_API_KEY:}  # 从环境变量或JVM参数获取
-    openai:
-      api-key: ${OPENAI_API_KEY:}    # 冒号后为空表示强制必须配置
       chat:
-          options:
-            model: "gpt-3.5-turbo"
+        options:
+          model: deepseek-chat
+          temperature: 0.1 # 模型生成文本的随机程度。值越大，回复内容越赋有多样性、创造性、随机性;设为0根据事实回答。日常聊天建议设置为 0.7
+    mcp:
+      client:
+        stdio:
+          # Spring 会自动在 src/main/resources 目录查找文件
+          servers-configuration: classpath:/mcp-server.json
+        enabled: true
+        type: sync
   datasource:
     url: jdbc:mysql://cd-cdb-dg1tsqr2.sql.tencentcdb.com:27806/db_study?charset=utf8mb4&parseTime=True&loc=Local
     username: dev_rd
@@ -30,4 +36,6 @@ logging:
     org.springframework.ai.model: TRACE
     # 可选：添加全局AI日志监控
     org.springframework.ai: INFO
-
+ai:
+  user:
+    input: "有哪些工具可用?"
