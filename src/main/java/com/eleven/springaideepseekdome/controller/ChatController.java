@@ -43,7 +43,7 @@ public class ChatController {
 
 
     /**
-     * 处理AI生成的聊天会话POST请求（同步响应）
+     * 处理AI生成的聊天会话POST请求（MCP同步响应）
      *
      * @param request
      * @return
@@ -72,9 +72,59 @@ public class ChatController {
         return new ChatReply(chatResponse.getResult().getOutput().getText(), request.getSession());
     }
 
+    /**
+     * 处理AI生成的聊天会话POST请求（MCP流式响应）
+     *
+     * @param request
+     * @return
+     */
+    @PostMapping(value = "/ai/chatmemory/mcp/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<Map<String, Object>> chatmemoryPromptMcpStream(@RequestBody @Valid ChatRequest request) {
+        // 判断sessionID是否为空，为空则生成一个sessionID
+        if (request.getSession() == null) {
+            request.setSession("session_" + System.currentTimeMillis());
+        }
+        ToolCallback[] toolCallbacks = toolCallbackProvider.getToolCallbacks();
+        // 日志打印toolCallbacks
+        log.info("toolCallbacks: {}", toolCallbacks);
+
+        return chatClient
+                .prompt(PromptConsole.MYSQL_STUDYDB_PROMPT)
+                .toolCallbacks(toolCallbacks)
+                .advisors(
+                        new SimpleLoggerAdvisor(),
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                .conversationId(request.getSession()).build()
+                )
+                .user(request.getMessage())
+                .stream()
+                .chatResponse()
+                .map(chatResponse -> {
+                    // 构建响应Map
+                    Map<String, Object> responseMap = Map.of(
+                            "session", request.getSession(),
+                            "round", chatMemory.get(request.getSession()) != null ?
+                                    chatMemory.get(request.getSession()).size() : 0,
+                            "content", chatResponse.getResult().getOutput().getText(),
+                            "tools", chatResponse.getResult().getOutput().getToolCalls()
+                                    .stream().map(tc -> tc.toString()).toList()
+                    );
+
+                    // 打印日志
+                    log.info("流式响应数据: {}",
+                            responseMap.entrySet().stream()
+                                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                                    .collect(Collectors.joining(", ", "{", "}"))
+                    );
+
+                    return responseMap; // 直接返回Map
+                });
+    }
+
+
 
     /**
-     * 处理AI生成的聊天会话POST请求（同步响应）
+     * 处理AI生成的聊天会话POST请求（Function Calling同步响应）
      *
      * @param request
      * @return
@@ -108,16 +158,17 @@ public class ChatController {
      */
     @PostMapping(value = "/ai/chatmemory/prompt/tool/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<Map<String, Object>> chatmemoryPromptToolStream(@RequestBody @Valid ChatRequest request) {
-        final String sessionId = request.getSession() != null ?
-                request.getSession() : "session_" + System.currentTimeMillis();
-
+        // 判断sessionID是否为空，为空则生成一个sessionID
+        if (request.getSession() == null) {
+            request.setSession("session_" + System.currentTimeMillis());
+        }
         return chatClient
                 .prompt(PromptConsole.MYSQL_STUDYDB_PROMPT)
                 .tools(new DateTimeTools(), new MysqlTools(jdbcTemplate))
                 .advisors(
                         new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(chatMemory)
-                                .conversationId(sessionId).build()
+                                .conversationId(request.getSession()).build()
                 )
                 .user(request.getMessage())
                 .stream()
@@ -125,9 +176,9 @@ public class ChatController {
                 .map(chatResponse -> {
                     // 构建响应Map
                     Map<String, Object> responseMap = Map.of(
-                            "session", sessionId,
-                            "round", chatMemory.get(sessionId) != null ?
-                                    chatMemory.get(sessionId).size() : 0,
+                            "session", request.getSession(),
+                            "round", chatMemory.get(request.getSession()) != null ?
+                                    chatMemory.get(request.getSession()).size() : 0,
                             "content", chatResponse.getResult().getOutput().getText(),
                             "tools", chatResponse.getResult().getOutput().getToolCalls()
                                     .stream().map(tc -> tc.toString()).toList()

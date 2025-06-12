@@ -7,7 +7,7 @@
         "-Dspring.main.web-application-type=none",
         "-Dlogging.pattern.console=",
         "-jar",
-        "D:/IdeaWorkSpace/mcp-mysql-start-webflux-server/mcp-mysql-start-webflux-server/target/mcp-mysql-start-webflux-server-0.0.1-SNAPSHOT.jar"
+        "D:/WorkSpace/IdeaWorkSpace/mcp-mysql-start-webflux-server/target/mcp-mysql-start-webflux-server-0.0.1-SNAPSHOT.jar"
       ]
     }
   }
