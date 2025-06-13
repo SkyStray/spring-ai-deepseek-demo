@@ -41,7 +41,6 @@ public class ChatCommonController {
     @Autowired
     private SyncMcpToolCallbackProvider toolCallbackProvider;
 
-
     /**
      * 统一同步聊天接口
      *
