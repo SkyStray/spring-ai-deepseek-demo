@@ -37,7 +37,6 @@ public class ChatController {
     private ChatMemory chatMemory;
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
     @Autowired
     private SyncMcpToolCallbackProvider toolCallbackProvider;
 

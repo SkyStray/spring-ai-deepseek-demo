@@ -10,11 +10,15 @@ spring:
           temperature: 0.1 # 模型生成文本的随机程度。值越大，回复内容越赋有多样性、创造性、随机性;设为0根据事实回答。日常聊天建议设置为 0.7
     mcp:
       client:
-        stdio:
-          # Spring 会自动在 src/main/resources 目录查找文件
-          servers-configuration: classpath:/mcp-server.json
         enabled: true
         type: sync
+        # stdio:
+        #   # Spring 会自动在 src/main/resources 目录查找文件
+        #   servers-configuration: classpath:/mcp-server.json
+        sse:
+          connections:
+            server1:
+              url: http://localhost:8888
   datasource:
     url: jdbc:mysql://cd-cdb-dg1tsqr2.sql.tencentcdb.com:27806/db_study?charset=utf8mb4&parseTime=True&loc=Local
     username: dev_rd
