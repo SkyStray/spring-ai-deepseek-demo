@@ -7,7 +7,7 @@ spring:
       chat:
         options:
           model: deepseek-chat
-          temperature: 0.1 # 模型生成文本的随机程度。值越大，回复内容越赋有多样性、创造性、随机性;设为0根据事实回答。日常聊天建议设置为 0.7
+          temperature: 0.2 # 模型生成文本的随机程度。值越大，回复内容越赋有多样性、创造性、随机性;设为0根据事实回答。日常聊天建议设置为 0.7
     openai:
       api-key: ${OPENAI_API_KEY:}
     mcp:

@@ -41,6 +41,8 @@ public class ChatCommonController {
     @Autowired
     private SyncMcpToolCallbackProvider toolCallbackProvider;
 
+    final int MAX_RETRIES = 3; // 最大重试次数
+
     /**
      * 统一同步聊天接口
      *
@@ -192,4 +194,29 @@ public class ChatCommonController {
         return responseMap;
     }
 
+
+    // 在 ChatCommonController 类中新增重试逻辑方法
+    private ChatResponse executeWithRetry(ChatClient.ChatClientRequestSpec requestSpec, int maxRetries) {
+        int attempts = 0;
+        while (attempts <= maxRetries) {
+            try {
+                return requestSpec.call().chatResponse();
+            } catch (Exception e) {
+                attempts++;
+                log.error("工具执行失败 (尝试 {}/{}): {}", attempts, maxRetries, e.getMessage());
+
+                if (attempts >= maxRetries) {
+                    throw e; // 达到最大重试次数后抛出异常
+                }
+
+                // 可选：添加延迟避免连续重试
+                try {
+                    Thread.sleep(500); // 500ms 延迟
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        throw new IllegalStateException("重试机制异常");
+    }
 }
